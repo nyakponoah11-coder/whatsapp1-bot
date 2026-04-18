@@ -18,7 +18,7 @@ const DATA_API_KEY = process.env.DATA_API_KEY;
 // =========================
 const PACKAGES = {
   MTN: {
-    "1": { size: "1GB", price: 600 },
+    "1": { size: "1GB", price: 100 },
     "2": { size: "2GB", price: 1200 },
     "3": { size: "5GB", price: 2700 }
   },
@@ -67,7 +67,7 @@ app.post("/webhook", async (req, res) => {
   if (users[from].step === 0) {
     users[from].step = 1;
 
-    reply = `Welcome to stoNyservice 💙
+    reply = `Welcome to NestyDatagh💙
 
 1 - MTN Data
 2 - Telecel Data`;
@@ -202,7 +202,7 @@ app.post("/paystack-webhook", async (req, res) => {
         },
         {
           headers: {
-            Authorization: DATA_API_KEY
+            Authorization: c18a0bb13875dc81431aa545a8bb458b02d423a09c3f54e92a5b1e392c57daa7
           }
         }
       );
