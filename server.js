@@ -18,9 +18,9 @@ const DATA_API_KEY = process.env.DATA_API_KEY;
 // =========================
 const PACKAGES = {
   MTN: {
-    "1": { size: "1GB", price: 100 },
-    "2": { size: "2GB", price: 1200 },
-    "3": { size: "5GB", price: 2700 }
+    "1": { size: "1GB", price: 1 },
+    "2": { size: "2GB", price: 12 },
+    "3": { size: "5GB", price: 27}
   },
   TELECEL: {
     "1": { size: "5GB", price: 2500 },
