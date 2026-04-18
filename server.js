@@ -11,7 +11,7 @@ const PHONE_ID = process.env.PHONE_ID;
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET;
 const DATA_API_KEY = process.env.DATA_API_KEY;
 
-// PACKAGES (FIXED PRICES)
+// PACKAGES (FIXED)
 const PACKAGES = {
   MTN: {
     "1": { size: "1GB", price: 600 },
@@ -24,9 +24,12 @@ const PACKAGES = {
   }
 };
 
+// SESSION
 let users = {};
 
-// VERIFY
+// =========================
+// VERIFY WEBHOOK
+// =========================
 app.get("/webhook", (req, res) => {
   if (
     req.query["hub.mode"] === "subscribe" &&
@@ -37,12 +40,16 @@ app.get("/webhook", (req, res) => {
   res.sendStatus(403);
 });
 
-// SUCCESS PAGE (FIX FOR FORBIDDEN)
+// =========================
+// SUCCESS PAGE (FIX FORBIDDEN)
+// =========================
 app.get("/success", (req, res) => {
   res.send("Payment successful ✅ Data will be delivered shortly.");
 });
 
-// BOT
+// =========================
+// WHATSAPP BOT
+// =========================
 app.post("/webhook", async (req, res) => {
   const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
   if (!message) return res.sendStatus(200);
@@ -50,55 +57,92 @@ app.post("/webhook", async (req, res) => {
   const from = message.from;
   const text = message.text?.body?.trim();
 
-  if (!users[from]) users[from] = { step: 0 };
+  console.log("Incoming:", text);
+
+  if (!users[from]) users[from] = {};
 
   let reply = "";
 
-  if (users[from].step === 0) {
+  // STEP 0 (FIXED)
+  if (!users[from].step) {
     users[from].step = 1;
-    reply = "1 - MTN\n2 - TELECEL";
+
+    reply = `Welcome to NestyDatagh 💙
+
+1 - MTN Data
+2 - Telecel Data`;
   }
 
+  // STEP 1
   else if (users[from].step === 1) {
-    users[from].network = text === "1" ? "MTN" : "TELECEL";
-    users[from].step = 2;
-    reply = "1 - 1GB\n2 - 2GB\n3 - 5GB";
+    if (text === "1") {
+      users[from].network = "MTN";
+      reply = `MTN Bundles:
+
+1 - 1GB ₵6
+2 - 2GB ₵12
+3 - 5GB ₵27`;
+      users[from].step = 2;
+    } else if (text === "2") {
+      users[from].network = "TELECEL";
+      reply = `Telecel Bundles:
+
+1 - 5GB ₵25
+2 - 10GB ₵38`;
+      users[from].step = 2;
+    } else {
+      reply = "Reply with 1 or 2";
+    }
   }
 
+  // STEP 2
   else if (users[from].step === 2) {
     users[from].bundle = text;
     users[from].step = 3;
-    reply = "Enter phone number";
+    reply = "Enter your phone number:";
   }
 
+  // STEP 3
   else if (users[from].step === 3) {
     users[from].number = text;
 
     const selected = PACKAGES[users[from].network][users[from].bundle];
-    const reference = `stony_${from}_${Date.now()}`;
 
-    users[from].reference = reference;
-    users[from].size = selected.size;
+    if (!selected) {
+      reply = "Invalid choice. Start again.";
+      users[from].step = 0;
+    } else {
+      const reference = `stony_${from}_${Date.now()}`;
 
-    const paystack = await axios.post(
-      "https://api.paystack.co/transaction/initialize",
-      {
-        email: "customer@email.com",
-        amount: selected.price * 100,
-        reference: reference,
-        callback_url: "https://whatsapp1-bot.onrender.com/success" // FIX
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET}`
+      users[from].reference = reference;
+      users[from].size = selected.size;
+
+      const paystack = await axios.post(
+        "https://api.paystack.co/transaction/initialize",
+        {
+          email: "customer@email.com",
+          amount: selected.price * 100,
+          reference: reference,
+          callback_url: "https://whatsapp1-bot.onrender.com/success"
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET}`
+          }
         }
-      }
-    );
+      );
 
-    reply = paystack.data.data.authorization_url;
-    users[from].step = 0;
+      reply = `Pay here:
+
+${paystack.data.data.authorization_url}
+
+After payment, data will be sent automatically ✅`;
+
+      users[from].step = 0;
+    }
   }
 
+  // SEND MESSAGE
   await axios.post(
     `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`,
     {
@@ -116,7 +160,9 @@ app.post("/webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
-// PAYSTACK WEBHOOK (FIXED DEBUG)
+// =========================
+// PAYSTACK WEBHOOK
+// =========================
 app.post("/paystack-webhook", async (req, res) => {
   try {
     const event = req.body;
@@ -125,7 +171,6 @@ app.post("/paystack-webhook", async (req, res) => {
     console.log("ALL USERS:", users);
 
     if (event.event === "charge.success") {
-
       const reference = event.data.reference;
       console.log("REFERENCE:", reference);
 
@@ -148,7 +193,7 @@ app.post("/paystack-webhook", async (req, res) => {
         },
         {
           headers: {
-            Authorization: `Bearer ${DATA_API_KEY}` // FIX
+            Authorization: `Bearer ${DATA_API_KEY}`
           }
         }
       );
@@ -164,4 +209,6 @@ app.post("/paystack-webhook", async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("Bot running"));
+// START SERVER
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Bot running on port", PORT));
