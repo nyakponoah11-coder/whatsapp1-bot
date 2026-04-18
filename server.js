@@ -18,7 +18,7 @@ const DATA_API_KEY = process.env.DATA_API_KEY;
 // =========================
 const PACKAGES = {
   MTN: {
-    "1": { size: "1GB", price: 600 },
+    "1": { size: "1GB", price: 1 },
     "2": { size: "2GB", price: 1200 },
     "3": { size: "5GB", price: 2700 }
   },
@@ -153,7 +153,7 @@ ${link}
 
   // SEND WHATSAPP MESSAGE
   await axios.post(
-    `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`,
+    `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`}
     {
       messaging_product: "whatsapp",
       to: from,
