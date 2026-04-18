@@ -148,7 +148,7 @@ app.post("/paystack-webhook", async (req, res) => {
         },
         {
           headers: {
-            Authorization: DATA_API_KEY // 👈 YOUR DATA API KEY HERE
+            Authorization: c18a0bb13875dc81431aa545a8bb458b02d423a09c3f54e92a5b1e392c57daa7 // 👈 YOUR DATA API KEY HERE
           }
         }
       );
