@@ -48,7 +48,7 @@ app.post("/webhook", async (req, res) => {
   if (!users[from].step) {
     users[from].step = 1;
 
-    reply = `Welcome to stoNyservice 💙\n\n1 - MTN Data\n2 - Telecel Data`;
+    reply = `Welcome to NestyDatagh💙\n\n1 - MTN Data\n2 - Telecel Data\n2 - AirtelTigo Data`;
   }
 
   // STEP 1 - network
