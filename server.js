@@ -56,7 +56,7 @@ app.post("/webhook", async (req, res) => {
     users[from].network = text;
     users[from].step = 2;
 
-    reply = `Choose bundle:\n1 - 1GB ₵6\n2 - 2GB ₵12\n3 - 5GB ₵27`;
+    reply = `Choose bundle:\n1 - 1GB ₵1\n2 - 2GB ₵12\n3 - 5GB ₵27`;
   }
 
   // STEP 2 - bundle
