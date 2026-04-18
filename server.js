@@ -70,7 +70,8 @@ app.post("/webhook", async (req, res) => {
     reply = `Welcome to NestyDatagh💙
 
 1 - MTN Data
-2 - Telecel Data`;
+2 - Telecel Data
+3 - AirtelTigo`;
   }
 
   // STEP 1 - NETWORK
@@ -81,9 +82,20 @@ app.post("/webhook", async (req, res) => {
 
       reply = `MTN Bundles:
 
-1 - 1GB ₵6
-2 - 2GB ₵12
-3 - 5GB ₵27`;
+1 - 1GB ₵4.80
+2 - 2GB ₵9.50
+3 - 3GB ₵14.80
+4 - 4GB ₵19.80
+5 - 5GB ₵24.50
+6 - 6GB ₵29.50
+7 - 8GB ₵37.00
+8 - 10GB ₵45.00
+9 - 15GB ₵65.00
+10 - 20GB ₵85.00
+11 - 25GB ₵105.00
+12 - 30GB ₵126.00
+13 - 40GB ₵162.00
+14 - 50GB ₵208.90`;
     } 
     else if (text === "2") {
       users[from].network = "TELECEL";
