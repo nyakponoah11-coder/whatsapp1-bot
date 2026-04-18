@@ -1,44 +1,20 @@
 const express = require("express");
 const axios = require("axios");
-const mongoose = require("mongoose");
 
 const app = express();
 app.use(express.json());
 
 // =========================
-// 🔐 ENV
+// ENV
 // =========================
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
 const PHONE_ID = process.env.PHONE_ID;
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET;
 const DATA_API_KEY = process.env.DATA_API_KEY;
-const MONGO_URI = process.env.MONGO_URI;
 
 // =========================
-// 📡 CONNECT DATABASE
-// =========================
-mongoose.connect(MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.log(err));
-
-// =========================
-// 📦 ORDER MODEL
-// =========================
-const orderSchema = new mongoose.Schema({
-  from: String,
-  number: String,
-  network: String,
-  bundle: String,
-  size: String,
-  reference: String,
-  status: { type: String, default: "pending" }
-});
-
-const Order = mongoose.model("Order", orderSchema);
-
-// =========================
-// 📦 PACKAGES
+// PACKAGES
 // =========================
 const PACKAGES = {
   MTN: {
@@ -53,7 +29,12 @@ const PACKAGES = {
 };
 
 // =========================
-// 🔍 VERIFY WEBHOOK
+// TEMP STORAGE (IMPORTANT)
+// =========================
+let users = {};
+
+// =========================
+// VERIFY WEBHOOK
 // =========================
 app.get("/webhook", (req, res) => {
   if (
@@ -66,7 +47,7 @@ app.get("/webhook", (req, res) => {
 });
 
 // =========================
-// 📩 WHATSAPP BOT
+// WHATSAPP BOT
 // =========================
 app.post("/webhook", async (req, res) => {
   const message = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
@@ -75,75 +56,56 @@ app.post("/webhook", async (req, res) => {
   const from = message.from;
   const text = message.text?.body?.trim();
 
+  if (!users[from]) users[from] = {};
+
   let reply = "";
 
-  // STEP 0
-  if (text === "hi" || text === "menu") {
-    reply = `Welcome 💙
-
-1 - MTN Data
-2 - Telecel Data`;
+  if (!users[from].step) {
+    users[from].step = 1;
+    reply = "1 - MTN\n2 - TELECEL";
   }
 
-  // STEP 1
-  else if (text === "1") {
-    reply = `MTN:
+  else if (users[from].step === 1) {
+    users[from].network = text === "1" ? "MTN" : "TELECEL";
+    users[from].step = 2;
 
-1 - 1GB ₵6
-2 - 2GB ₵12
-3 - 5GB ₵27`;
+    reply = "Select bundle:\n1 - 1GB\n2 - 2GB\n3 - 5GB";
   }
 
-  else if (text === "2") {
-    reply = `Telecel:
+  else if (users[from].step === 2) {
+    users[from].bundle = text;
+    users[from].step = 3;
 
-1 - 5GB ₵25
-2 - 10GB ₵38`;
+    reply = "Send phone number";
   }
 
-  // STEP 2 (bundle selection)
-  else if (["1","2","3"].includes(text)) {
-    await Order.create({
-      from,
-      bundle: text
-    });
+  else if (users[from].step === 3) {
+    users[from].number = text;
 
-    reply = "Enter your phone number:";
-  }
+    const selected = PACKAGES[users[from].network][users[from].bundle];
 
-  // STEP 3 (phone number)
-  else {
-    const lastOrder = await Order.findOne({ from }).sort({ _id: -1 });
+    const reference = `stony_${from}_${Date.now()}`;
 
-    if (lastOrder && !lastOrder.number) {
-      const network = text.length > 10 ? "TELECEL" : "MTN";
-      const selected = PACKAGES[network][lastOrder.bundle];
+    users[from].reference = reference;
+    users[from].size = selected.size;
 
-      const reference = `stony_${Date.now()}`;
-
-      lastOrder.number = text;
-      lastOrder.network = network;
-      lastOrder.size = selected.size;
-      lastOrder.reference = reference;
-
-      await lastOrder.save();
-
-      const paystack = await axios.post(
-        "https://api.paystack.co/transaction/initialize",
-        {
-          email: "customer@email.com",
-          amount: selected.price * 100,
-          reference
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${PAYSTACK_SECRET}`
-          }
+    const paystack = await axios.post(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        email: "customer@email.com",
+        amount: selected.price * 100,
+        reference
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET}`
         }
-      );
+      }
+    );
 
-      reply = `Pay here:\n${paystack.data.data.authorization_url}`;
-    }
+    reply = paystack.data.data.authorization_url;
+
+    users[from].step = 0;
   }
 
   await axios.post(
@@ -164,7 +126,7 @@ app.post("/webhook", async (req, res) => {
 });
 
 // =========================
-// 🔥 PAYSTACK WEBHOOK (DATA DELIVERY)
+// PAYSTACK WEBHOOK
 // =========================
 app.post("/paystack-webhook", async (req, res) => {
   try {
@@ -174,30 +136,35 @@ app.post("/paystack-webhook", async (req, res) => {
 
       const reference = event.data.reference;
 
-      const order = await Order.findOne({ reference });
+      // 🔥 FIND USER IN MEMORY
+      const userKey = Object.keys(users).find(
+        k => users[k].reference === reference
+      );
 
-      if (!order) return res.sendStatus(200);
+      if (!userKey) return res.sendStatus(200);
+
+      const user = users[userKey];
 
       // =========================
-      // 🔥 DATA API (HERE IS THE PLACE)
+      // 🔥 DATA API (THIS IS THE ONLY IMPORTANT PART)
       // =========================
       await axios.post(
         "https://datamartgh.shop/api/send",
         {
-          number: order.number,
-          data: order.size
+          number: user.number,
+          data: user.size
         },
         {
           headers: {
-            Authorization: `Bearer c18a0bb13875dc81431aa545a8bb458b02d423a09c3f54e92a5b1e392c57daa7`
+            Authorization: "Bearer c18a0bb13875dc81431aa545a8bb458b02d423a09c3f54e92a5b1e392c57daa7"
           }
         }
       );
 
-      order.status = "completed";
-      await order.save();
+      console.log("✅ DATA SENT:", user.number, user.size);
 
-      console.log("✅ Data sent successfully");
+      // clear user after success
+      delete users[userKey];
     }
 
     res.sendStatus(200);
@@ -209,7 +176,6 @@ app.post("/paystack-webhook", async (req, res) => {
 });
 
 // =========================
-// 🚀 START
+// START SERVER
 // =========================
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Bot running"));
+app.listen(3000, () => console.log("Bot running"));
